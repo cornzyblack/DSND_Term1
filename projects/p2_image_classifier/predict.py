@@ -86,24 +86,44 @@ def load_checkpoint(filepath):
 # load the Model
 model = load_checkpoint(checkpoint)
 
+# TODO: Process a PIL image for use in a PyTorch model
 def process_image(image):
     ''' Scales, crops, and normalizes a PIL image for a PyTorch model,
         returns an Numpy array
     '''
     pil_image = Image.open(image)
+    pil_image_size = pil_image.size
+    aspect_ratio = pil_image_size[0] / pil_image_size[1]
     
-    resized_img = transforms.Compose([transforms.Resize(256),
-                                  transforms.CenterCrop(224)])(pil_image)
+    dict_image_size = {value:pos for pos,value in enumerate(pil_image_size)}
+    shortest_pos_side = dict_image_size[min(dict_image_size)]
+    
+    # if width is the shortest (0) then width = 256, height = 256 * aspect ratio,
+    # if height is the shortest (1) then width = 256 * 1 / aspect ratio height = 256
 
-    np_image = np.array(resized_img)/255
+    aspect_transforms = [[256, aspect_ratio*256], 
+                         [(1/aspect_ratio) * 256, 256]]
+        
+    pil_image.thumbnail((aspect_transforms[shortest_pos_side][0],
+                        aspect_transforms[shortest_pos_side][1]))
+
     
+    left_margin = (pil_image.width-224) / 2
+    bottom_margin = (pil_image.height-224) / 2
+    right_margin = left_margin + 224
+    top_margin = bottom_margin + 224
+    
+    img = pil_image.crop((left_margin, bottom_margin, right_margin,    
+                    top_margin))
+    
+    img = np.array(img)/255
     means = np.array([0.485, 0.456, 0.406]) 
     stdevs = np.array([0.229, 0.224, 0.225])
     
-    np_image = np_image - means / stdevs
+    np_image = (img - means / stdevs).transpose(2, 0, 1)
 
-    np_image = np_image.transpose(2, 0, 1)
-    return np_image
+
+    return np_image    
 
 
 def predict(image_path, model, topk=5):
@@ -132,9 +152,9 @@ def predict(image_path, model, topk=5):
     # Invert the mapping to be index to class so that we can link 
     # the output indices from forward
     inv_map = {value: key for key, value in indx_map.items()}
-    classes = [inv_map[i] for i in indices[0].numpy()]
+    classes = [inv_map[i] for i in indices[0].cpu().numpy()]
     
-    return prob[0].numpy(), classes   
+    return prob[0].cpu().numpy(), classes   
 
 def answer(image_path, model, top):
     probs, classes = predict(image_path, model, topk=top)

@@ -119,17 +119,24 @@ testloader = torch.utils.data.DataLoader(test_datasets, batch_size=64, shuffle=T
 #               'vgg16': models.vgg16(pretrained=True),
 #               'vgg19': models.vgg19(pretrained=True)
 #               }
+
 model_list = {'densenet169': models.densenet169(pretrained=True),
-              'vgg19': models.vgg19(pretrained=True)}
+              'vgg19': models.vgg19(pretrained=True),
+              'vgg16': models.vgg16(pretrained=True)}
 
 # check if the architecture is available in the list
 # If available get it from the model_list and initialize 
 # it in model
+input_layer_dict = {'d':1664, 'v':25088}
+start_layer_size = input_layer_dict[arch[0]]  
+
 if (arch in model_list):
 	model = model_list[arch]
-# architecture is not in model_list then use the default densenet169
+
+    # architecture is not in model_list then use the default densenet169
 else:
 	model = model_list['densenet169']
+
 ########################################################################
 
 # CLASSIFIER
@@ -147,7 +154,7 @@ for i in zip(relu_names, relu_layers):
     complete_relu.append(i)
 final_module = []
 
-input_layer = [('fc1', nn.Linear(1664, hidden_units[0])), ('relu', nn.ReLU())]
+input_layer = [('fc1', nn.Linear(start_layer_size, hidden_units[0])), ('relu', nn.ReLU())]
 for i,x in zip(complete_module, complete_relu):
     final_module.append(i)
     final_module.append(x)
